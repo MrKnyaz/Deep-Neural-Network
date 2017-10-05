@@ -5,7 +5,7 @@ Has different types of output: binary, softmax and linear for regression problem
 Supports minibatches and different optimizers like "gradient", "gradient with momentum" and "adam"
 
 ### How to use ###
-Model uses data using NxM shape where N - is number of features and M - number of examples.  
+Model accepts data using NxM shape, where N is the number of features and M is the number of examples.  
 Example:  
   
 layers_dims = [train_X.shape[0], 60, 1]  
