@@ -14,5 +14,5 @@ costs = deep_nn.train(train_X, trin_Y, layers_dims, num_iterations=2000, learnin
 predictions = deep_nn.predict(train_X)  
 plt.plot(costs)  
 
-You can set activation_out parameter as "linear" if you need regression model
+You can set activation_out parameter as "linear" if you need regression model.
 
