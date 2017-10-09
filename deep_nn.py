@@ -3,10 +3,21 @@ import math
 
 class DeepNN(object):
 
-    def __init__(self):
-        self.parameters = None
-        self.activation_hidden = None
-        self.activation_out = None
+    def __init__(self, layers, activation_hidden="relu", activation_out="sigmoid", lambd=0.01, optimizer="gradient", beta1=0.9, beta2=0.999, batch={"size": 0, "randomize": False}):
+        self.initialize_params(layers)
+        self.activation_hidden = activation_hidden
+        self.activation_out = activation_out
+        self.randomize_batch = batch["randomize"]
+        self.batch_size = batch["size"]
+        self.optimizer = optimizer
+        self.beta1 = beta1
+        self.beta2 = beta2
+        self.lambd = lambd
+        self.t = 0  # adam iteration coefficient
+        if optimizer == "gradient_momentum":
+            self.v = self.initialize_velocity()
+        elif optimizer == "adam":
+            self.v, self.s = self.initialize_adam()
 
     def initialize_params(self, layers):
         # np.random.seed(3)
@@ -36,54 +47,45 @@ class DeepNN(object):
             s["db" + str(l)] = np.zeros(self.parameters["b" + str(l)].shape)
         return v, s
 
-    def train(self, X, Y, layers, num_iterations=9000, activation_hidden="relu", activation_out="sigmoid", learning_rate=0.01, lambd=0.01, optimizer="gradient", beta1=0.9, beta2=0.999, batch={"size": 0, "randomize": False}, print_cost={"print": True, "period": 1000}):
-        self.initialize_params(layers)
-        self.activation_hidden = activation_hidden
-        self.activation_out = activation_out
+    def train(self, X, Y, num_iterations=1000, learning_rate=0.01, print_cost={"print": True, "period": 1000}, stop_treshold=0.0):
         L = len(self.parameters) // 2
-        t = 0
         costs = []
-        randomize_batch = batch["randomize"]
-        batch_size = batch["size"]
         print_cost_period = print_cost["period"]
         print_cost = print_cost["print"]
-        if optimizer == "gradient_momentum":
-            v = self.initialize_velocity()
-        elif optimizer == "adam":
-            v, s = self.initialize_adam()
-        if batch_size == 0:
+        if self.batch_size == 0:
             batches = [(X, Y)]
         else:
             seed = 11
-            batches = self.generate_mini_batches(X, Y, batch_size, seed)
+            batches = self.generate_mini_batches(X, Y, self.batch_size, seed)
+        prev_cost = 0
         for i in range(num_iterations):
             for batch in batches:
                 batch_X, batch_Y = batch
                 m = batch_X.shape[1]
                 cache = self.forward_propagation(batch_X)
-                if activation_out != "linear":
-                    cost = self.cost(cache["A" + str(L)], batch_Y)
-                else:
-                    cost = self.cost(cache["Z" + str(L)], batch_Y)
-                cost = cost + self.l2_regularization_cost(lambd, m)
-                grads = self.backward_propagation(batch_Y, cache, lambd)
-
-                if optimizer == "gradient":
+                cost = self.cost(cache["A" + str(L)], batch_Y)
+                cost = cost + self.l2_regularization_cost(self.lambd, m)
+                grads = self.backward_propagation(batch_Y, cache, self.lambd)
+                if self.optimizer == "gradient":
                     self.update_parameters(grads, learning_rate)
-                elif optimizer == "gradient_momentum":
-                    self.update_parameters_momentum(grads, learning_rate, v, beta1)
-                elif optimizer == "adam":
-                    t = t + 1
-                    self.update_parameters_adam(grads, learning_rate, v, s, t, beta1, beta2)
+                elif self.optimizer == "gradient_momentum":
+                    self.update_parameters_momentum(grads, learning_rate, self.v, self.beta1)
+                elif self.optimizer == "adam":
+                    self.t = self.t + 1
+                    self.update_parameters_adam(grads, learning_rate, self.v, self.s, self.t, self.beta1, self.beta2)
 
-            if batch_size != 0 and randomize_batch:
+            if self.batch_size != 0 and self.randomize_batch:
                 seed = seed + 1
-                batches = self.generate_mini_batches(X, Y, batch_size, seed)
+                batches = self.generate_mini_batches(X, Y, self.batch_size, seed)
             if i % print_cost_period == 0 and print_cost:
                 print("Cost after iteration %s is: %s" % (i, cost))
             if i % (print_cost_period / 10) == 0:
                 costs.append(cost)
-
+            if abs(prev_cost - cost) <= stop_treshold:
+                print("Final cost is %s" % cost)
+                print("Cost did not improve more than %s" % stop_treshold)
+                break
+            prev_cost = cost
         return costs
 
     def cost(self, AL, Y):
@@ -200,7 +202,7 @@ class DeepNN(object):
             return np.tanh(Z)
         elif activation == "sigmoid":
             return self.sigmoid(Z)
-        else:
+        else:  # linear
             return Z
 
     def relu(self, Z):
@@ -257,8 +259,7 @@ class DeepNN(object):
 
 # test neural network components
 def test_initialize_params():
-    deep_nn = DeepNN()
-    deep_nn.initialize_params([10, 4, 2])
+    deep_nn = DeepNN(layers=[10, 4, 2])
     params = deep_nn.parameters
     print(params["W1"].shape)
     print(params["b1"].shape)
@@ -267,8 +268,7 @@ def test_initialize_params():
     print(params["W1"])
 
 def test_forward_propagation():
-    deep_nn = DeepNN()
-    deep_nn.initialize_params([4, 3, 2, 1])
+    deep_nn = DeepNN(layers=[4, 3, 2, 1])
     X = np.random.randn(4, 1)
     cache = deep_nn.forward_propagation(X)
     print(cache["A0"].shape)
@@ -279,19 +279,18 @@ def test_forward_propagation():
     print(cache)
 
 def test_forward_and_back():
-    deep_nn = DeepNN()
-    deep_nn.initialize_params([4, 3, 1])
+    deep_nn = DeepNN(layers=[4, 3, 1], activation_out="sigmoid")
     X = np.random.randn(4, 1)
     Y = np.round(deep_nn.sigmoid(np.random.randn(1, 1)))
     cache = deep_nn.forward_propagation(X)
-    cost = deep_nn.cost(cache["A" + str(2)], Y, "sigmoid")
-    grads = deep_nn.backward_propagation(Y, cache)
+    cost = deep_nn.cost(cache["A" + str(2)], Y)
+    grads = deep_nn.backward_propagation(Y, cache, deep_nn.lambd)
     print(cache)
     print(grads)
     print("cost %s" % cost)
 
 def test_generate_minibatches():
-    deep_nn = DeepNN()
+    deep_nn = DeepNN([])
     X = np.array([[1,2,3,99], [4,5,6,88]])
     Y = np.array([[7,8,9,77]])
     batches = deep_nn.generate_mini_batches(X, Y, 2)
