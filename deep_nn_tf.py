@@ -115,8 +115,8 @@ class DeepNNTF(object):
             seed = 11
             batches = self.generate_mini_batches(X, Y, self.batch_size, seed)
             num_of_minibatches = int(m / self.batch_size)
-        prev_cost = 0
 
+        prev_cost = 0
         with tf.Session() as sess:
 
             sess.run(tf.global_variables_initializer())
