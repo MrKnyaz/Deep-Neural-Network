@@ -52,19 +52,24 @@ class DeepNN(object):
         costs = []
         print_cost_period = print_cost["period"]
         print_cost = print_cost["print"]
+        m = X.shape[1]
         if self.batch_size == 0:
             batches = [(X, Y)]
+            num_of_minibatches = 1
         else:
             seed = 11
             batches = self.generate_mini_batches(X, Y, self.batch_size, seed)
+            num_of_minibatches = int(m / self.batch_size)
         prev_cost = 0
         for i in range(num_iterations):
+            cost = 0
             for batch in batches:
                 batch_X, batch_Y = batch
-                m = batch_X.shape[1]
+                m_batch = batch_X.shape[1]
                 cache = self.forward_propagation(batch_X)
-                cost = self.cost(cache["A" + str(L)], batch_Y)
-                cost = cost + self.l2_regularization_cost(self.lambd, m)
+                batch_cost = self.cost(cache["A" + str(L)], batch_Y)
+                batch_cost = batch_cost + self.l2_regularization_cost(self.lambd, m_batch)
+                cost = cost + batch_cost / num_of_minibatches
                 grads = self.backward_propagation(batch_Y, cache, self.lambd)
                 if self.optimizer == "gradient":
                     self.update_parameters(grads, learning_rate)
@@ -110,7 +115,7 @@ class DeepNN(object):
         L = len(self.parameters) // 2
         cache = self.forward_propagation(X)
         A = cache["A" + str(L)]
-        if self.activation_out != "linear":
+        if self.activation_out != "linear" and self.activation_out != "softmax":
             A = A > 0.5
         return A
 
@@ -202,6 +207,8 @@ class DeepNN(object):
             return np.tanh(Z)
         elif activation == "sigmoid":
             return self.sigmoid(Z)
+        elif activation == "softmax":
+            return self.softmax(Z)
         else:  # linear
             return Z
 
@@ -213,6 +220,12 @@ class DeepNN(object):
 
     def sigmoid(self, Z):
         A = 1 / (1 + np.exp(-Z))
+        return A
+
+    def softmax(self, Z):
+        Zcorr = Z - np.max(Z, axis=0)
+        exponent = np.exp(Zcorr)
+        A = exponent / np.sum(exponent, axis=0)
         return A
 
     def sigmoid_derivative(self, dA, Z):
@@ -304,3 +317,4 @@ def test_generate_minibatches():
 # test_forward_propagation()
 # test_forward_and_back()
 # test_generate_minibatches()
+
