@@ -22,11 +22,11 @@ class DeepNNTF(object):
         self.parameters = None
         self.trained_params = None
         self.cache = None           # cache for A0 Z1 A1 Z2 A2 ...
-        self.X = None
-        self.Y = None
+        self.X = None               # placeholder
+        self.Y = None               # placeholder
         self.cost = None
         self.optimizer = None
-        self.learning_rate = None
+        self.learning_rate = None   # placeholder
         self.build_graph()
 
     def build_graph(self):
