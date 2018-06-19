@@ -5,7 +5,8 @@ Has different types of output: binary, softmax and linear for regression problem
 Supports minibatches and different optimizers like "gradient", "gradient with momentum" and "adam"
 
 ### How to use ###
-Model accepts data using NxM shape, where N is the number of features and M is the number of examples.  
+Model accepts data using NxM shape, where N is the number of features and M is the number of examples.
+Works faster than Tensorflow version on small amount of data.  
 Example:  
  
 ```python
@@ -18,7 +19,7 @@ plt.plot(costs)
 
 
 DeepNNTF - is a tensorflow based model
-Model accepts data using MxN shape, where N is the number of features and M is the number of examples.
+Model accepts data using MxN shape, where N is the number of features and M is the number of examples. 
 Example:
 
 ```python
